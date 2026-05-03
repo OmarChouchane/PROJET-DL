@@ -4,10 +4,10 @@ torchaudio==2.5.1
 timm==0.9.7
 librosa==0.10.2.post1
 soundfile==0.12.1
-numpy==1.24.3
-scipy==1.11.1
-scikit-learn==1.3.0
-pandas==2.0.3
+numpy==1.26.4
+scipy==1.13.0
+scikit-learn==1.4.2
+pandas==2.2.0
 matplotlib==3.7.2
 seaborn==0.12.2
 tqdm==4.66.1
