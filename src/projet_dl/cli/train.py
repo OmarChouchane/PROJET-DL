@@ -14,6 +14,8 @@ def build_parser():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--no_sam", action="store_true")
     p.add_argument("--no_focal", action="store_true")
+    p.add_argument("--oversample", action="store_true", help="Use WeightedRandomSampler to oversample minority classes")
+    p.add_argument("--weight_factor", type=float, default=1.0, help="Multiply computed class weights by this factor for minority boosting")
     return p
 
 
@@ -28,6 +30,8 @@ def main():
         use_sam=not args.no_sam,
         use_focal=not args.no_focal,
         seed=args.seed,
+        oversample=args.oversample,
+        weight_factor=args.weight_factor,
         device=args.device,
     )
     print("[train] done")

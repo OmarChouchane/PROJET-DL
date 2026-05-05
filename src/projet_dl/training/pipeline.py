@@ -72,7 +72,7 @@ def _eval_epoch(model, loader, criterion, device):
     return total_loss / max(1, len(loader)), metrics
 
 
-def run_training(data_path, output_path, epochs=20, batch_size=8, lr=1e-5, use_sam=True, use_focal=True, seed=42, device=None):
+def run_training(data_path, output_path, epochs=20, batch_size=8, lr=1e-5, use_sam=True, use_focal=True, seed=42, device=None, oversample=False, weight_factor=1.0):
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -86,11 +86,28 @@ def run_training(data_path, output_path, epochs=20, batch_size=8, lr=1e-5, use_s
     test_specs = torch.from_numpy(data["test_specs"]).float()
     test_labels = torch.from_numpy(data["test_labels"]).long()
 
-    train_loader = DataLoader(TensorDataset(train_specs, train_labels), batch_size=batch_size, shuffle=True)
+    # compute class weights and optionally amplify minority classes
+    weights = class_weights_from_labels(train_labels, num_classes=4)
+    weights = weights * float(weight_factor)
+    weights = weights.to(dev)
+
+    if oversample:
+        # create a WeightedRandomSampler to oversample minority classes
+        class_sample_counts = np.bincount(train_labels.numpy(), minlength=4)
+        # inverse frequency for each class
+        class_weights_sampler = 1.0 / (class_sample_counts + 1e-6)
+        samples_weight = class_weights_sampler[train_labels.numpy()]
+        samples_weight = torch.from_numpy(samples_weight).double()
+        from torch.utils.data import WeightedRandomSampler
+
+        sampler = WeightedRandomSampler(weights=samples_weight, num_samples=len(samples_weight), replacement=True)
+        train_loader = DataLoader(TensorDataset(train_specs, train_labels), batch_size=batch_size, sampler=sampler)
+    else:
+        train_loader = DataLoader(TensorDataset(train_specs, train_labels), batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(TensorDataset(test_specs, test_labels), batch_size=batch_size, shuffle=False)
 
     model = SimpleAST(num_classes=4).to(dev)
-    weights = class_weights_from_labels(train_labels, num_classes=4).to(dev)
+    # criterion uses the (possibly amplified) class weights
     criterion = FocalLoss(alpha=weights, gamma=2.0) if use_focal else nn.CrossEntropyLoss(weight=weights)
 
     if use_sam:
